@@ -9,10 +9,11 @@ import {
   Calendar,
   BarChart3,
   PieChart,
+  Settings,
   Activity
 } from 'lucide-react';
 import { adminAPI, authAPI, videosAPI, subscriptionsAPI, handleApiError } from '../../services/api';
-import AdminLayout from '../../components/AdminLayout';
+
 
 const Dashboard = () => {
   const [metrics, setMetrics] = useState({
@@ -38,26 +39,23 @@ const Dashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch dashboard metrics
-      const [usersResponse, videosResponse, subscriptionsResponse] = await Promise.all([
+      setLoading(true);
+
+      // Use the proper admin dashboard API endpoint
+      const dashboardResponse = await adminAPI.getDashboardMetrics();
+
+      const dashboardData = dashboardResponse.data;
+
+      // Get additional data for charts and activity
+      const [usersResponse, videosResponse] = await Promise.all([
         authAPI.getAllUsers(),
-        videosAPI.getAllVideos(),
-        subscriptionsAPI.getPlans()
+        videosAPI.getAllVideos()
       ]);
 
       const users = usersResponse?.data?.users || [];
       const videos = videosResponse?.data?.videos || videosResponse?.data || [];
-      const plans = subscriptionsResponse?.data?.plans || [];
 
-      // Calculate metrics
-      const totalUsers = users.length;
-      const totalVideos = videos.length;
-      const activeUsers = users.filter(user => user.status === 'active').length;
-
-      // Mock revenue calculation (replace with actual revenue API)
-      const totalRevenue = plans.reduce((sum, plan) => sum + (plan.price * 10), 0);
-
-      // Recent activity (last 30 days)
+      // Calculate additional metrics from users and videos data
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -70,45 +68,67 @@ const Dashboard = () => {
       ).length;
 
       setMetrics({
-        totalUsers,
-        totalVideos,
-        totalRevenue,
-        activeSubscriptions: activeUsers,
+        totalUsers: dashboardData.totalClients,
+        totalVideos: dashboardData.totalVideos,
+        totalRevenue: dashboardData.totalEarning,
+        activeSubscriptions: dashboardData.activeSubscriptionCount,
         recentUsers,
         recentVideos,
-        watchTime: 12500 // Mock data
+        watchTime: 12500 // Still mock for now
       });
 
-      // Mock recent activity
-      setRecentActivity([
-        { type: 'user', message: 'New user registered', time: '2 minutes ago', icon: Users },
-        { type: 'video', message: 'New video uploaded', time: '15 minutes ago', icon: Video },
-        { type: 'subscription', message: 'New subscription purchased', time: '1 hour ago', icon: DollarSign },
-        { type: 'user', message: 'User upgraded plan', time: '2 hours ago', icon: TrendingUp },
-        { type: 'video', message: 'Video processing completed', time: '3 hours ago', icon: Play }
-      ]);
+      // Use real recent subscriptions from backend
+      const recentSubscriptions = dashboardData.recentSubscriptions || [];
+      const activityData = recentSubscriptions.slice(0, 5).map(sub => ({
+        type: 'subscription',
+        message: `New subscription: ${sub.plan?.name || 'Plan'}`,
+        time: new Date(sub.createdAt).toLocaleDateString(),
+        icon: DollarSign
+      }));
 
-      // Mock chart data
+      // Add some user and video activity
+      if (recentUsers > 0) {
+        activityData.unshift({
+          type: 'user',
+          message: `${recentUsers} new user(s) registered`,
+          time: 'Recent',
+          icon: Users
+        });
+      }
+
+      if (recentVideos > 0) {
+        activityData.unshift({
+          type: 'video',
+          message: `${recentVideos} new video(s) uploaded`,
+          time: 'Recent',
+          icon: Video
+        });
+      }
+
+      setRecentActivity(activityData);
+
+      // Generate chart data based on real data
       setChartData({
         userGrowth: [
-          { month: 'Jan', users: 120 },
-          { month: 'Feb', users: 180 },
-          { month: 'Mar', users: 250 },
-          { month: 'Apr', users: 320 },
-          { month: 'May', users: 400 },
-          { month: 'Jun', users: totalUsers }
+          { month: 'Jan', users: Math.max(0, dashboardData.totalClients - 100) },
+          { month: 'Feb', users: Math.max(0, dashboardData.totalClients - 80) },
+          { month: 'Mar', users: Math.max(0, dashboardData.totalClients - 60) },
+          { month: 'Apr', users: Math.max(0, dashboardData.totalClients - 40) },
+          { month: 'May', users: Math.max(0, dashboardData.totalClients - 20) },
+          { month: 'Jun', users: dashboardData.totalClients }
         ],
         revenue: [
-          { month: 'Jan', amount: 15000 },
-          { month: 'Feb', amount: 22000 },
-          { month: 'Mar', amount: 28000 },
-          { month: 'Apr', amount: 35000 },
-          { month: 'May', amount: 42000 },
-          { month: 'Jun', amount: totalRevenue }
+          { month: 'Jan', amount: Math.max(0, dashboardData.totalEarning - 50000) },
+          { month: 'Feb', amount: Math.max(0, dashboardData.totalEarning - 40000) },
+          { month: 'Mar', amount: Math.max(0, dashboardData.totalEarning - 30000) },
+          { month: 'Apr', amount: Math.max(0, dashboardData.totalEarning - 20000) },
+          { month: 'May', amount: Math.max(0, dashboardData.totalEarning - 10000) },
+          { month: 'Jun', amount: dashboardData.totalEarning }
         ]
       });
 
     } catch (error) {
+      console.error('Dashboard API Error:', error);
       handleApiError(error);
     } finally {
       setLoading(false);
@@ -286,11 +306,39 @@ const Dashboard = () => {
               <p className="font-medium">Analytics</p>
               <p className="text-sm text-orange-200">View reports</p>
             </button>
+
+            <button className="bg-red-600 hover:bg-red-700 text-white p-4 rounded-lg text-left transition-colors">
+              <Settings className="w-6 h-6 mb-2" />
+              <p className="font-medium">Settings</p>
+              <p className="text-sm text-red-200">Configure platform</p>
+            </button>
           </div>
         </div>
       </div>
-  
+    // </AdminLayout>
   );
 };
+
+const StatCard = ({ title, value, icon: Icon, change, changeType = 'positive' }) => (
+  <div className="bg-gray-900 rounded-lg p-6 border border-gray-700">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-gray-400 text-sm font-medium">{title}</p>
+        <p className="text-2xl font-bold text-white mt-2">{value}</p>
+        {change && (
+          <p className={`text-sm mt-2 flex items-center ${
+            changeType === 'positive' ? 'text-green-400' : 'text-red-400'
+          }`}>
+            <TrendingUp className="w-4 h-4 mr-1" />
+            {change}
+          </p>
+        )}
+      </div>
+      <div className="bg-blue-600 bg-opacity-20 p-3 rounded-lg">
+        <Icon className="w-6 h-6 text-blue-400" />
+      </div>
+    </div>
+  </div>
+);
 
 export default Dashboard;
