@@ -63,6 +63,14 @@ const Navbar = () => {
             >
               Series
             </Link>
+            <Link
+              to="/contact"
+              className={`text-sm font-medium transition-colors ${
+                isActive('/contact') ? 'text-white' : 'text-gray-300 hover:text-white'
+              }`}
+            >
+              Support
+            </Link>
             {isAdmin() && (
               <Link
                 to="/admin"
@@ -194,6 +202,13 @@ const Navbar = () => {
               onClick={() => setIsMenuOpen(false)}
             >
               Series
+            </Link>
+            <Link
+              to="/contact"
+              className="block py-2 text-gray-300 hover:text-white"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Support
             </Link>
             {isAdmin() && (
               <Link

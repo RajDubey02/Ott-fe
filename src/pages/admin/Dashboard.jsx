@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import {
   Users,
@@ -44,9 +45,9 @@ const Dashboard = () => {
         subscriptionsAPI.getPlans()
       ]);
 
-      const users = usersResponse.data.users || [];
-      const videos = videosResponse.data.videos || videosResponse.data || [];
-      const plans = subscriptionsResponse.data.plans || [];
+      const users = usersResponse?.data?.users || [];
+      const videos = videosResponse?.data?.videos || videosResponse?.data || [];
+      const plans = subscriptionsResponse?.data?.plans || [];
 
       // Calculate metrics
       const totalUsers = users.length;
@@ -138,16 +139,14 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <AdminLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-white text-xl">Loading dashboard...</div>
-        </div>
-      </AdminLayout>
+      <div className="flex items-center justify-center h-64">
+        <div className="text-white text-xl">Loading dashboard...</div>
+      </div>
     );
   }
 
   return (
-    <AdminLayout>
+    // <AdminLayout>
       <div className="space-y-8">
         {/* Header */}
         <div>
@@ -290,7 +289,7 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
-    </AdminLayout>
+  
   );
 };
 

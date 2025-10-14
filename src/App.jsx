@@ -13,12 +13,14 @@ import Watch from './pages/Watch';
 import WatchDetail from './pages/WatchDetail';
 import Search from './pages/Search';
 import Profile from './pages/Profile';
+import Contact from './pages/Contact';
 
 // Admin Pages
 import Dashboard from './pages/admin/Dashboard';
 import ManageMovies from './pages/admin/ManageMovies';
 import ManageUsers from './pages/admin/ManageUsers';
 import ManageSubscriptions from './pages/admin/ManageSubscriptions';
+import ManageQueries from './pages/admin/ManageQueries';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, requireAdmin = false }) => {
@@ -64,6 +66,7 @@ const AppRouter = () => {
       {/* Public Routes */}
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
+      <Route path="/contact" element={<Layout><Contact /></Layout>} />
 
       {/* Protected User Routes */}
       <Route path="/" element={<Layout><Home /></Layout>} />
@@ -104,6 +107,13 @@ const AppRouter = () => {
         <AdminLayout>
           <ProtectedRoute requireAdmin>
             <ManageSubscriptions />
+          </ProtectedRoute>
+        </AdminLayout>
+      } />
+      <Route path="/admin/queries" element={
+        <AdminLayout>
+          <ProtectedRoute requireAdmin>
+            <ManageQueries />
           </ProtectedRoute>
         </AdminLayout>
       } />

@@ -1,13 +1,10 @@
 import { useState, useEffect } from 'react';
 import {
   Plus,
-  Edit,
-  Trash2,
+  Search,
   Eye,
   EyeOff,
-  Upload,
-  Search,
-  Filter,
+  Trash2,
   X,
   Save
 } from 'lucide-react';
@@ -20,11 +17,10 @@ const ManageMovies = () => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [editingVideo, setEditingVideo] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterType, setFilterType] = useState('all');
-  
+
   const [formData, setFormData] = useState({
     videoTitle: '',
     episodeName: '',
@@ -54,9 +50,9 @@ const ManageMovies = () => {
         videosAPI.getAllVideos(),
         categoriesAPI.getCategories()
       ]);
-      
-      setVideos(videosResponse.data.videos || videosResponse.data || []);
-      setCategories(categoriesResponse.data.categories || categoriesResponse.data || []);
+
+      setVideos(videosResponse?.data?.videos || videosResponse?.data || []);
+      setCategories(categoriesResponse?.data?.categories || categoriesResponse?.data || []);
     } catch (error) {
       handleApiError(error);
     } finally {
@@ -66,7 +62,7 @@ const ManageMovies = () => {
 
   const handleInputChange = (e) => {
     const { name, value, type, files } = e.target;
-    
+
     if (type === 'file') {
       setFormData(prev => ({ ...prev, [name]: files[0] }));
     } else if (name === 'actors' || name === 'writers' || name === 'countries' || name === 'languages') {
@@ -81,9 +77,23 @@ const ManageMovies = () => {
     e.preventDefault();
     setLoading(true);
 
+    // Basic client-side validation
+    if (!formData.videoTitle || !formData.genre) {
+      toast.error('Please fill in all required fields (Video Title, Genre)');
+      setLoading(false);
+      return;
+    }
+
+    // Validate file for new uploads
+    if (!formData.file) {
+      toast.error('Please select a video file');
+      setLoading(false);
+      return;
+    }
+
     try {
       const submitData = new FormData();
-      
+
       // Append all form fields
       Object.keys(formData).forEach(key => {
         if (key === 'actors' || key === 'writers' || key === 'countries' || key === 'languages') {
@@ -95,16 +105,11 @@ const ManageMovies = () => {
         }
       });
 
-      if (editingVideo) {
-        // Update video (API endpoint would need to be implemented)
-        handleApiSuccess('Video updated successfully');
-      } else {
-        await videosAPI.uploadVideo(submitData);
-        handleApiSuccess('Video uploaded successfully');
-      }
+      // Upload video (editing not supported)
+      await videosAPI.uploadVideo(submitData);
+      handleApiSuccess('Video uploaded successfully');
 
       setShowModal(false);
-      setEditingVideo(null);
       resetForm();
       fetchData();
     } catch (error) {
@@ -131,39 +136,26 @@ const ManageMovies = () => {
       quality: 'HD',
       poster: null,
       thumb: null,
-      videoFile: null
+      file: null
     });
   };
 
   const handleEdit = (video) => {
-    setEditingVideo(video);
-    setFormData({
-      videoTitle: video.videoTitle || '',
-      episodeName: video.episodeName || '',
-      description: video.description || '',
-      genre: video.genre || '',
-      actors: video.actors || [],
-      writers: video.writers || [],
-      imdbRating: video.imdbRating || '',
-      releaseDate: video.releaseDate ? video.releaseDate.split('T')[0] : '',
-      countries: video.countries || [],
-      languages: video.languages || [],
-      videoType: video.videoType || 'episode',
-      runtimeMinutes: video.runtimeMinutes || '',
-      quality: video.quality || 'HD',
-      poster: null,
-      thumb: null,
-      videoFile: null
-    });
-    setShowModal(true);
+    // For now, editing is not supported by backend - show error
+    toast.error('Video editing is not yet supported');
+    // setEditingVideo(video);
+    // setFormData({...});
+    // setShowModal(true);
   };
 
   const handleDelete = async (videoId) => {
     if (window.confirm('Are you sure you want to delete this video?')) {
       try {
-        // Delete video API call would go here
-        handleApiSuccess('Video deleted successfully');
-        fetchData();
+        // For now, delete is not supported by backend - show error
+        toast.error('Video deletion is not yet supported');
+        // await videosAPI.deleteVideo(videoId);
+        // handleApiSuccess('Video deleted successfully');
+        // fetchData();
       } catch (error) {
         handleApiError(error);
       }
@@ -172,40 +164,42 @@ const ManageMovies = () => {
 
   const toggleVideoStatus = async (videoId, currentStatus) => {
     try {
-      // Toggle video status API call would go here
       const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
-      handleApiSuccess(`Video ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully`);
-      fetchData();
+      // For now, status update is not supported by backend - show error
+      toast.error('Video status update is not yet supported');
+      // await videosAPI.updateVideoStatus(videoId, { status: newStatus });
+      // handleApiSuccess(`Video ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully`);
+      // fetchData();
     } catch (error) {
       handleApiError(error);
     }
   };
 
   const filteredVideos = videos.filter(video => {
-    const matchesSearch = video.videoTitle?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         video.episodeName?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = filterStatus === 'all' || 
+    const matchesSearch = (video.videoTitle?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                         (video.episodeName?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+
+    const matchesStatus = filterStatus === 'all' ||
                          (filterStatus === 'active' && video.status !== 'inactive') ||
                          (filterStatus === 'inactive' && video.status === 'inactive');
-    
+
     const matchesType = filterType === 'all' || video.videoType === filterType;
-    
+
     return matchesSearch && matchesStatus && matchesType;
   });
 
   if (loading && !showModal) {
     return (
-      <AdminLayout>
+
         <div className="flex items-center justify-center h-64">
           <div className="text-white text-xl">Loading videos...</div>
         </div>
-      </AdminLayout>
+    
     );
   }
 
   return (
-    <AdminLayout>
+
       <div className="space-y-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
@@ -216,7 +210,6 @@ const ManageMovies = () => {
           <button
             onClick={() => {
               resetForm();
-              setEditingVideo(null);
               setShowModal(true);
             }}
             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center space-x-2 transition-colors"
@@ -299,12 +292,12 @@ const ManageMovies = () => {
                       <div className="flex items-center">
                         <img
                           src={video.poster || '/api/placeholder/60/90'}
-                          alt={video.videoTitle}
+                          alt={video.videoTitle || 'Video'}
                           className="w-12 h-16 object-cover rounded mr-4"
                         />
                         <div>
                           <div className="text-sm font-medium text-white">
-                            {video.videoTitle}
+                            {video.videoTitle || 'N/A'}
                           </div>
                           {video.episodeName && (
                             <div className="text-sm text-gray-400">
@@ -316,7 +309,7 @@ const ManageMovies = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="px-2 py-1 text-xs font-medium bg-blue-600 text-white rounded-full">
-                        {video.videoType}
+                        {video.videoType || 'N/A'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
@@ -345,14 +338,9 @@ const ManageMovies = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center space-x-2">
                         <button
-                          onClick={() => handleEdit(video)}
-                          className="text-blue-400 hover:text-blue-300 transition-colors"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
                           onClick={() => handleDelete(video._id)}
                           className="text-red-400 hover:text-red-300 transition-colors"
+                          title="Delete Video (Not Supported)"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -372,7 +360,7 @@ const ManageMovies = () => {
               <div className="p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-semibold text-white">
-                    {editingVideo ? 'Edit Video' : 'Upload New Video'}
+                    Upload New Video
                   </h2>
                   <button
                     onClick={() => setShowModal(false)}
@@ -472,6 +460,7 @@ const ManageMovies = () => {
                       <input
                         type="number"
                         name="runtimeMinutes"
+                        min="0"
                         value={formData.runtimeMinutes}
                         onChange={handleInputChange}
                         className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
@@ -587,52 +576,50 @@ const ManageMovies = () => {
                   </div>
 
                   {/* File Uploads */}
-                  {!editingVideo && (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      {/* Video File */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">
-                          Video File *
-                        </label>
-                        <input
-                          type="file"
-                          name="videoFile"
-                          accept="video/*"
-                          required={!editingVideo}
-                          onChange={handleInputChange}
-                          className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                        />
-                      </div>
-
-                      {/* Poster */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">
-                          Poster Image
-                        </label>
-                        <input
-                          type="file"
-                          name="poster"
-                          accept="image/*"
-                          onChange={handleInputChange}
-                          className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                        />
-                      </div>
-
-                      {/* Thumbnail */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">
-                          Thumbnail Image
-                        </label>
-                        <input
-                          type="file"
-                          name="thumb"
-                          accept="image/*"
-                          onChange={handleInputChange}
-                          className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                        />
-                      </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Video File */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Video File *
+                      </label>
+                      <input
+                        type="file"
+                        name="file"
+                        accept="video/*"
+                        required
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                      />
                     </div>
-                  )}
+
+                    {/* Poster */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Poster Image
+                      </label>
+                      <input
+                        type="file"
+                        name="poster"
+                        accept="image/*"
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+
+                    {/* Thumbnail */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Thumbnail Image
+                      </label>
+                      <input
+                        type="file"
+                        name="thumb"
+                        accept="image/*"
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
 
                   {/* Submit Buttons */}
                   <div className="flex justify-end space-x-4">
@@ -653,7 +640,7 @@ const ManageMovies = () => {
                       ) : (
                         <Save className="w-4 h-4" />
                       )}
-                      <span>{editingVideo ? 'Update' : 'Upload'}</span>
+                      <span>{loading ? 'Uploading...' : 'Upload'}</span>
                     </button>
                   </div>
                 </form>
@@ -662,7 +649,7 @@ const ManageMovies = () => {
           </div>
         )}
       </div>
-    </AdminLayout>
+ 
   );
 };
 
