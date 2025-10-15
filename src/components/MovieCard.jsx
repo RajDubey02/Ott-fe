@@ -58,9 +58,11 @@ const MovieCard = ({ video, size = 'medium', showDetails = true }) => {
       return;
     }
 
-    console.log('User has subscription, navigating to video');
-    // If user has subscription, navigate to watch page
-    navigate(`/watch/${video._id || video.id}`);
+    console.log('User has subscription, navigating to episode');
+
+    // Navigate to episode watch page - use episodeName if available, otherwise use video ID
+    const routeParam = video.episodeName || video._id || video.id;
+    navigate(`/watch/${routeParam}`);
   };
 
   const handleSubscriptionSuccess = () => {

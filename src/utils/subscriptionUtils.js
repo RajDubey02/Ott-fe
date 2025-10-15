@@ -125,13 +125,16 @@ export const checkEpisodeAccess = async (episodeId, episodeName) => {
         const hasAccess = sub.plan?.scope === 'episode' && (
           sub.episodeId === episodeId ||
           sub.episodeName === episodeId ||
-          sub.episodeName === episodeName
+          sub.episodeName === episodeName ||
+          sub.episode?.episodeName === episodeName ||
+          sub.episode?.episodeId === episodeId
         );
 
         console.log('Checking episode sub:', {
           subId: sub._id,
           subEpisodeId: sub.episodeId,
           subEpisodeName: sub.episodeName,
+          subEpisode: sub.episode,
           targetEpisodeId: episodeId,
           targetEpisodeName: episodeName,
           isActive,

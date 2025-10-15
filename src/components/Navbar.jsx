@@ -48,21 +48,15 @@ const Navbar = () => {
               Home
             </Link>
             <Link
-              to="/movies"
+              to="/episodes"
               className={`text-sm font-medium transition-colors ${
-                isActive('/movies') ? 'text-white' : 'text-gray-300 hover:text-white'
+                isActive('/episodes') ? 'text-white' : 'text-gray-300 hover:text-white'
               }`}
             >
-              Movies
+              Episodes
             </Link>
-            <Link
-              to="/series"
-              className={`text-sm font-medium transition-colors ${
-                isActive('/series') ? 'text-white' : 'text-gray-300 hover:text-white'
-              }`}
-            >
-              Series
-            </Link>
+           
+          
             <Link
               to="/contact"
               className={`text-sm font-medium transition-colors ${
@@ -188,6 +182,13 @@ const Navbar = () => {
               onClick={() => setIsMenuOpen(false)}
             >
               Home
+            </Link>
+            <Link
+              to="/episodes"
+              className="block py-2 text-gray-300 hover:text-white"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Episodes
             </Link>
             <Link
               to="/movies"

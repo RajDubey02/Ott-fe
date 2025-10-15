@@ -1,16 +1,23 @@
 import { useState, useEffect } from 'react';
-import { X, Crown, CheckCircle, Star, Loader } from 'lucide-react';
-import { subscriptionsAPI, handleApiError, handleApiSuccess } from '../services/api';
+import { X, Crown, CheckCircle, Star, Loader, CreditCard } from 'lucide-react';
+import { subscriptionsAPI, videosAPI, handleApiError, handleApiSuccess } from '../services/api';
 
-const SubscriptionModal = ({ isOpen, onClose, onSubscriptionSuccess }) => {
+const SubscriptionModal = ({ isOpen, onClose, onSubscriptionSuccess, episodeName = null }) => {
   const [loading, setLoading] = useState(false);
   const [plansLoading, setPlansLoading] = useState(true);
+  const [episodesLoading, setEpisodesLoading] = useState(true);
   const [plans, setPlans] = useState([]);
+  const [episodes, setEpisodes] = useState([]);
   const [selectedPlan, setSelectedPlan] = useState(null);
+  const [selectedEpisode, setSelectedEpisode] = useState(episodeName || '');
+  const [orderCreated, setOrderCreated] = useState(false);
+  const [orderId, setOrderId] = useState(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       fetchPlans();
+      fetchEpisodes();
     }
   }, [isOpen]);
 
@@ -29,21 +36,46 @@ const SubscriptionModal = ({ isOpen, onClose, onSubscriptionSuccess }) => {
     }
   };
 
+  const fetchEpisodes = async () => {
+    try {
+      setEpisodesLoading(true);
+      console.log('Fetching episodes for dropdown...');
+      const response = await videosAPI.getAllVideos();
+      console.log('Episodes response:', response.data);
+
+      // Extract unique episode names from videos
+      const videos = response.data.videos || response.data || [];
+      const episodeNames = ['All', ...new Set(videos.map(video => video.episodeName || video.videoTitle || 'Unknown').filter(Boolean))];
+
+      console.log('Episode names:', episodeNames);
+      setEpisodes(episodeNames);
+    } catch (error) {
+      console.error('Error fetching episodes:', error);
+      handleApiError(error);
+    } finally {
+      setEpisodesLoading(false);
+    }
+  };
+
   const handleSubscribe = async (plan) => {
+    if (plan.scope === 'episode' && !selectedEpisode) {
+      handleApiError({ message: 'Please select an episode' });
+      return;
+    }
+
     setLoading(true);
     try {
       console.log('Creating subscription order for plan:', plan);
+      console.log('Episode name:', selectedEpisode);
 
-      // For all-access plans, use episodeName: "all"
-      // For episode plans, we would need episodeName, but for general subscription we'll use "all"
+      // Use selected episode name, fallback to "all" for all-access plans
       const orderData = {
         planCode: plan.code,
-        episodeName: plan.scope === 'all' ? 'all' : 'Episode 1' // Default episode name for episode plans
+        episodeName: selectedEpisode || (plan.scope === 'all' ? 'all' : 'Episode 1')
       };
 
       console.log('Order data:', orderData);
 
-      // Use the correct endpoint for user subscription creation
       const orderResponse = await subscriptionsAPI.createOrderByEpisodeName(orderData);
       console.log('Order response:', orderResponse);
 
@@ -61,31 +93,71 @@ const SubscriptionModal = ({ isOpen, onClose, onSubscriptionSuccess }) => {
         const amount = orderResponse.data.displayAmountRupees;
 
         console.log('Order created successfully:', orderId, 'Amount:', amount);
+        setOrderId(orderId);
+        setOrderCreated(true);
 
-        // For now, simulate successful payment since we don't have Razorpay integration
-        handleApiSuccess(`Order created! ₹${amount} payment required.`);
-        setSelectedPlan(plan);
-        onSubscriptionSuccess && onSubscriptionSuccess(plan);
-
-        setTimeout(() => {
-          onClose();
-        }, 3000);
+        // For now, simulate payment process
+        handlePayment(orderId, amount, plan);
       } else {
-        // Fallback for testing
-        console.log('Simulating successful subscription');
-        handleApiSuccess(`Successfully subscribed to ${plan.title}!`);
-        setSelectedPlan(plan);
-        onSubscriptionSuccess && onSubscriptionSuccess(plan);
-
-        setTimeout(() => {
-          onClose();
-        }, 2000);
+        throw new Error('Invalid order response');
       }
     } catch (error) {
       console.error('Subscription error:', error);
       handleApiError(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePayment = async (orderId, amount, plan) => {
+    setPaymentLoading(true);
+    try {
+      console.log('Processing payment for order:', orderId);
+
+      // Simulate payment process - in real app, this would integrate with Razorpay/PayPal
+      // For now, we'll simulate a successful payment after 2 seconds
+
+      setTimeout(async () => {
+        try {
+          // Simulate webhook call
+          const webhookData = {
+            event: "payment.captured",
+            payload: {
+              payment: {
+                entity: {
+                  id: "pay_" + Date.now(),
+                  order_id: orderId,
+                  amount: amount * 100, // Convert to paise
+                  currency: "INR"
+                }
+              }
+            }
+          };
+
+          console.log('Calling webhook with:', webhookData);
+          await subscriptionsAPI.webhook(webhookData);
+
+          console.log('Payment successful!');
+          handleApiSuccess(`Successfully subscribed to ${plan.title}!`);
+          setSelectedPlan(plan);
+          onSubscriptionSuccess && onSubscriptionSuccess(plan);
+
+          setTimeout(() => {
+            onClose();
+          }, 2000);
+
+        } catch (webhookError) {
+          console.error('Webhook error:', webhookError);
+          handleApiError(webhookError);
+        } finally {
+          setPaymentLoading(false);
+        }
+      }, 2000);
+
+    } catch (error) {
+      console.error('Payment error:', error);
+      handleApiError(error);
+      setPaymentLoading(false);
     }
   };
 
@@ -123,6 +195,62 @@ const SubscriptionModal = ({ isOpen, onClose, onSubscriptionSuccess }) => {
           </div>
         )}
 
+        {/* Payment Processing */}
+        {paymentLoading && (
+          <div className="p-4 bg-blue-600 bg-opacity-20 border-l-4 border-blue-500">
+            <div className="flex items-center space-x-2">
+              <Loader className="w-5 h-5 text-blue-400 animate-spin" />
+              <p className="text-blue-400 font-medium">
+                Processing payment... Please wait
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Order Created */}
+        {orderCreated && !paymentLoading && (
+          <div className="p-4 bg-yellow-600 bg-opacity-20 border-l-4 border-yellow-500">
+            <div className="flex items-center space-x-2">
+              <CreditCard className="w-5 h-5 text-yellow-400" />
+              <p className="text-yellow-400 font-medium">
+                Order created! Processing payment...
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Episode Selection for Episode Plans */}
+        <div className="p-6 border-b border-gray-700">
+          <div className="max-w-md">
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Select Episode (for Episode Plans)
+            </label>
+            <div className="relative">
+              <select
+                value={selectedEpisode}
+                onChange={(e) => setSelectedEpisode(e.target.value)}
+                className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                disabled={episodesLoading}
+              >
+                <option value="">Select an episode...</option>
+                {episodes.map((episode) => (
+                  <option key={episode} value={episode}>
+                    {episode}
+                  </option>
+                ))}
+              </select>
+              {episodesLoading && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <Loader className="w-4 h-4 animate-spin text-gray-400" />
+                </div>
+              )}
+            </div>
+            <p className="text-xs text-gray-400 mt-1">
+              Select the episode you want to subscribe to. "All" is for all-access plans.
+            </p>
+          </div>
+        </div>
+
         {/* Plans */}
         <div className="p-6 flex-1 overflow-y-auto">
           {plansLoading ? (
@@ -143,7 +271,7 @@ const SubscriptionModal = ({ isOpen, onClose, onSubscriptionSuccess }) => {
                     plan.popular
                       ? 'border-yellow-500 bg-gray-800'
                       : 'border-gray-700 hover:border-gray-600'
-                  } ${loading ? 'opacity-50 pointer-events-none' : ''}`}
+                  } ${loading || paymentLoading ? 'opacity-50 pointer-events-none' : ''}`}
                 >
                   {plan.popular && (
                     <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
@@ -190,17 +318,22 @@ const SubscriptionModal = ({ isOpen, onClose, onSubscriptionSuccess }) => {
 
                   <button
                     onClick={() => handleSubscribe(plan)}
-                    disabled={loading}
+                    disabled={loading || paymentLoading || (plan.scope === 'episode' && !selectedEpisode)}
                     className={`w-full py-3 px-4 rounded-lg font-semibold transition-colors ${
                       plan.popular
                         ? 'bg-yellow-500 hover:bg-yellow-600 text-black'
                         : 'bg-blue-600 hover:bg-blue-700 text-white'
-                    } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    } ${loading || paymentLoading || (plan.scope === 'episode' && !selectedEpisode) ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     {loading ? (
                       <div className="flex items-center justify-center space-x-2">
                         <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                        <span>Processing...</span>
+                        <span>Creating Order...</span>
+                      </div>
+                    ) : paymentLoading ? (
+                      <div className="flex items-center justify-center space-x-2">
+                        <Loader className="w-4 h-4 animate-spin" />
+                        <span>Processing Payment...</span>
                       </div>
                     ) : (
                       `Subscribe to ${plan.title}`

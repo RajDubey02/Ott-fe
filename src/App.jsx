@@ -14,6 +14,8 @@ import WatchDetail from './pages/WatchDetail';
 import Search from './pages/Search';
 import Profile from './pages/Profile';
 import Contact from './pages/Contact';
+import Episodes from './pages/Episodes'
+import VideoPlayer from './pages/VideoPlayer'
 
 // Admin Pages
 import Dashboard from './pages/admin/Dashboard';
@@ -70,7 +72,9 @@ const AppRouter = () => {
 
       {/* Protected User Routes */}
       <Route path="/" element={<Layout><Home /></Layout>} />
-      <Route path="/watch/:id" element={<Layout><Watch /></Layout>} />
+      <Route path="/episodes" element={<Layout><Episodes /></Layout>} />
+      <Route path="/watch/:name" element={<Layout><Watch /></Layout>} />
+      <Route path="/play/:videoId" element={<Layout><VideoPlayer /></Layout>} />
       <Route path="/movie/:id" element={<Layout><WatchDetail /></Layout>} />
       <Route path="/search" element={<Layout><Search /></Layout>} />
       <Route path="/profile" element={
