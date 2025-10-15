@@ -2,6 +2,17 @@ import { useState, useEffect } from 'react';
 import { X, Crown, CheckCircle, Star, Loader, CreditCard } from 'lucide-react';
 import { subscriptionsAPI, videosAPI, handleApiError, handleApiSuccess } from '../services/api';
 
+// Razorpay integration
+const loadRazorpayScript = () => {
+  return new Promise((resolve) => {
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
+
 const SubscriptionModal = ({ isOpen, onClose, onSubscriptionSuccess, episodeName = null }) => {
   const [loading, setLoading] = useState(false);
   const [plansLoading, setPlansLoading] = useState(true);
@@ -114,45 +125,82 @@ const SubscriptionModal = ({ isOpen, onClose, onSubscriptionSuccess, episodeName
     try {
       console.log('Processing payment for order:', orderId);
 
-      // Simulate payment process - in real app, this would integrate with Razorpay/PayPal
-      // For now, we'll simulate a successful payment after 2 seconds
+      // Load Razorpay script
+      const razorpayLoaded = await loadRazorpayScript();
+      if (!razorpayLoaded) {
+        throw new Error('Failed to load Razorpay SDK');
+      }
 
-      setTimeout(async () => {
-        try {
-          // Simulate webhook call
-          const webhookData = {
-            event: "payment.captured",
-            payload: {
-              payment: {
-                entity: {
-                  id: "pay_" + Date.now(),
-                  order_id: orderId,
-                  amount: amount * 100, // Convert to paise
-                  currency: "INR"
+      // Get Razorpay key from environment
+      const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
+      if (!razorpayKey) {
+        throw new Error('Razorpay key not configured');
+      }
+
+      // Razorpay options
+      const options = {
+        key: razorpayKey,
+        amount: amount * 100, // Amount in paise
+        currency: 'INR',
+        name: 'OTT Platform',
+        description: `Subscription to ${plan.title}`,
+        order_id: orderId,
+        handler: async function (response) {
+          console.log('Payment successful:', response);
+
+          try {
+            // Call webhook with payment details
+            const webhookData = {
+              event: "payment.captured",
+              payload: {
+                payment: {
+                  entity: {
+                    id: response.razorpay_payment_id,
+                    order_id: response.razorpay_order_id,
+                    amount: amount * 100,
+                    currency: "INR"
+                  }
                 }
               }
-            }
-          };
+            };
 
-          console.log('Calling webhook with:', webhookData);
-          await subscriptionsAPI.webhook(webhookData);
+            console.log('Calling webhook with:', webhookData);
+            await subscriptionsAPI.webhook(webhookData);
 
-          console.log('Payment successful!');
-          handleApiSuccess(`Successfully subscribed to ${plan.title}!`);
-          setSelectedPlan(plan);
-          onSubscriptionSuccess && onSubscriptionSuccess(plan);
+            console.log('Payment successful!');
+            handleApiSuccess(`Successfully subscribed to ${plan.title}!`);
+            setSelectedPlan(plan);
+            onSubscriptionSuccess && onSubscriptionSuccess(plan);
 
-          setTimeout(() => {
-            onClose();
-          }, 2000);
+            setTimeout(() => {
+              onClose();
+            }, 2000);
 
-        } catch (webhookError) {
-          console.error('Webhook error:', webhookError);
-          handleApiError(webhookError);
-        } finally {
-          setPaymentLoading(false);
+          } catch (webhookError) {
+            console.error('Webhook error:', webhookError);
+            handleApiError(webhookError);
+          } finally {
+            setPaymentLoading(false);
+          }
+        },
+        prefill: {
+          name: '',
+          email: '',
+          contact: ''
+        },
+        theme: {
+          color: '#F59E0B' // Yellow theme to match your UI
+        },
+        modal: {
+          ondismiss: function() {
+            console.log('Payment modal dismissed');
+            setPaymentLoading(false);
+          }
         }
-      }, 2000);
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
 
     } catch (error) {
       console.error('Payment error:', error);
