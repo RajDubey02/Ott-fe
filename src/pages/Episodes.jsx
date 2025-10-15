@@ -2,7 +2,7 @@
 // import { useNavigate } from 'react-router-dom';
 // import { Play, Calendar, Clock, Star } from 'lucide-react';
 // import { videosAPI, handleApiError } from '../services/api';
-// import { checkSubscriptionStatus, isUserLoggedIn } from '../utils/subscriptionUtils';
+// import { checkSubscriptionStatus, checkEpisodeAccess, isUserLoggedIn } from '../utils/subscriptionUtils';
 // import toast from 'react-hot-toast';
 // import SubscriptionModal from '../components/SubscriptionModal';
 
@@ -214,7 +214,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play, Calendar, Clock, Star } from 'lucide-react';
 import { videosAPI, handleApiError } from '../services/api';
-import { checkSubscriptionStatus, isUserLoggedIn } from '../utils/subscriptionUtils';
+import { checkSubscriptionStatus, checkEpisodeAccess, isUserLoggedIn } from '../utils/subscriptionUtils';
 import toast from 'react-hot-toast';
 import SubscriptionModal from '../components/SubscriptionModal';
 
@@ -289,11 +289,12 @@ const Episodes = () => {
       return;
     }
 
-    const hasSubscription = await checkSubscriptionStatus();
+    // Check if user has access to this specific episode
+    const firstVideoId = episode.videos[0]?._id;
+    const hasAccess = await checkEpisodeAccess(firstVideoId, episode.episodeName);
 
-    if (!hasSubscription) {
+    if (!hasAccess) {
       // Select the first video in the episode group for subscription modal
-      const firstVideoId = episode.videos[0]?._id;
       if (firstVideoId) {
         setSelectedVideoId(firstVideoId);
         setShowSubscriptionModal(true);
