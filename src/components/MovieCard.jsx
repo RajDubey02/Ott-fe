@@ -1,10 +1,15 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Play, Plus, Star, Clock } from 'lucide-react';
+import SubscriptionModal from './SubscriptionModal';
+import { checkSubscriptionStatus, checkEpisodeAccess, isUserLoggedIn } from '../utils/subscriptionUtils';
+import toast from 'react-hot-toast';
 
 const MovieCard = ({ video, size = 'medium', showDetails = true }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const navigate = useNavigate();
 
   const sizeClasses = {
     small: 'w-32 h-48',
@@ -21,6 +26,49 @@ const MovieCard = ({ video, size = 'medium', showDetails = true }) => {
     setImageLoaded(true);
   };
 
+  const handleVideoClick = async (e) => {
+    e.preventDefault();
+
+    console.log('Video data:', {
+      id: video._id,
+      title: video.videoTitle || video.title,
+      episodeName: video.episodeName,
+      allKeys: Object.keys(video)
+    });
+
+    // Check if user is logged in
+    if (!isUserLoggedIn()) {
+      console.log('User not logged in');
+      toast.error('Please login to watch videos');
+      navigate('/login');
+      return;
+    }
+
+    console.log('User is logged in, checking episode access...');
+
+    // Check if user has access to this specific episode
+    const episodeId = video._id || video.id;
+    const episodeName = video.episodeName || video.videoTitle || video.title;
+    const hasEpisodeAccess = await checkEpisodeAccess(episodeId, episodeName);
+    console.log('Has episode access:', hasEpisodeAccess, 'for episode:', episodeName);
+
+    if (!hasEpisodeAccess) {
+      console.log('No episode access, showing modal');
+      setShowSubscriptionModal(true);
+      return;
+    }
+
+    console.log('User has subscription, navigating to video');
+    // If user has subscription, navigate to watch page
+    navigate(`/watch/${video._id || video.id}`);
+  };
+
+  const handleSubscriptionSuccess = () => {
+    setShowSubscriptionModal(false);
+    // After successful subscription, navigate to video
+    navigate(`/watch/${video._id || video.id}`);
+  };
+
   const formatDuration = (minutes) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
@@ -32,9 +80,12 @@ const MovieCard = ({ video, size = 'medium', showDetails = true }) => {
   };
 
   return (
-    <div className="group relative cursor-pointer transition-transform duration-300 hover:scale-105">
-      <Link to={`/watch/${video._id || video.id}`}>
-        <div className={`${sizeClasses[size]} relative overflow-hidden rounded-lg bg-gray-800`}>
+    <>
+      <div className="group relative cursor-pointer transition-transform duration-300 hover:scale-105">
+        <div
+          className={`${sizeClasses[size]} relative overflow-hidden rounded-lg bg-gray-800`}
+          onClick={handleVideoClick}
+        >
           {/* Poster Image */}
           {!imageError ? (
             <img
@@ -45,6 +96,7 @@ const MovieCard = ({ video, size = 'medium', showDetails = true }) => {
               }`}
               onLoad={handleImageLoad}
               onError={handleImageError}
+              crossOrigin="anonymous"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gray-700">
@@ -86,60 +138,67 @@ const MovieCard = ({ video, size = 'medium', showDetails = true }) => {
             </div>
           )}
         </div>
-      </Link>
 
-      {/* Movie Details */}
-      {showDetails && (
-        <div className="mt-3 space-y-1">
-          <h3 className="text-white font-medium text-sm line-clamp-2 group-hover:text-blue-400 transition-colors">
-            {video.videoTitle || video.title}
-          </h3>
-          
-          <div className="flex items-center space-x-2 text-xs text-gray-400">
-            {video.imdbRating && (
-              <div className="flex items-center space-x-1">
-                <Star className="w-3 h-3 text-yellow-500 fill-current" />
-                <span>{formatRating(video.imdbRating)}</span>
-              </div>
+        {/* Movie Details */}
+        {showDetails && (
+          <div className="mt-3 space-y-1">
+            <h3 className="text-white font-medium text-sm line-clamp-2 group-hover:text-blue-400 transition-colors">
+              {video.videoTitle || video.title}
+            </h3>
+
+            <div className="flex items-center space-x-2 text-xs text-gray-400">
+              {video.imdbRating && (
+                <div className="flex items-center space-x-1">
+                  <Star className="w-3 h-3 text-yellow-500 fill-current" />
+                  <span>{formatRating(video.imdbRating)}</span>
+                </div>
+              )}
+
+              {video.runtimeMinutes && (
+                <div className="flex items-center space-x-1">
+                  <Clock className="w-3 h-3" />
+                  <span>{formatDuration(video.runtimeMinutes)}</span>
+                </div>
+              )}
+
+              {video.releaseDate && (
+                <span>{new Date(video.releaseDate).getFullYear()}</span>
+              )}
+            </div>
+
+            {video.genre && (
+              <p className="text-xs text-gray-500">{video.genre}</p>
             )}
-            
-            {video.runtimeMinutes && (
-              <div className="flex items-center space-x-1">
-                <Clock className="w-3 h-3" />
-                <span>{formatDuration(video.runtimeMinutes)}</span>
-              </div>
-            )}
-            
-            {video.releaseDate && (
-              <span>{new Date(video.releaseDate).getFullYear()}</span>
+
+            {video.description && size === 'large' && (
+              <p className="text-xs text-gray-400 line-clamp-2 mt-2">
+                {video.description}
+              </p>
             )}
           </div>
+        )}
 
-          {video.genre && (
-            <p className="text-xs text-gray-500">{video.genre}</p>
-          )}
-
-          {video.description && size === 'large' && (
-            <p className="text-xs text-gray-400 line-clamp-2 mt-2">
-              {video.description}
-            </p>
-          )}
+        {/* Action Buttons (on hover) */}
+        <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          <button
+            className="w-8 h-8 bg-gray-900 bg-opacity-80 hover:bg-opacity-100 rounded-full flex items-center justify-center text-white transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              // Add to watchlist logic
+            }}
+          >
+            <Plus className="w-4 h-4" />
+          </button>
         </div>
-      )}
-
-      {/* Action Buttons (on hover) */}
-      <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-        <button
-          className="w-8 h-8 bg-gray-900 bg-opacity-80 hover:bg-opacity-100 rounded-full flex items-center justify-center text-white transition-colors"
-          onClick={(e) => {
-            e.preventDefault();
-            // Add to watchlist logic
-          }}
-        >
-          <Plus className="w-4 h-4" />
-        </button>
       </div>
-    </div>
+
+      {/* Subscription Modal */}
+      <SubscriptionModal
+        isOpen={showSubscriptionModal}
+        onClose={() => setShowSubscriptionModal(false)}
+        onSubscriptionSuccess={handleSubscriptionSuccess}
+      />
+    </>
   );
 };
 

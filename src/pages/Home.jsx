@@ -1,14 +1,19 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Play, Info, ChevronLeft, ChevronRight } from 'lucide-react';
 import MovieCard from '../components/MovieCard';
 import { videosAPI, handleApiError } from '../services/api';
+import { checkSubscriptionStatus, isUserLoggedIn } from '../utils/subscriptionUtils';
+import toast from 'react-hot-toast';
+import SubscriptionModal from '../components/SubscriptionModal';
 
 const Home = () => {
   const [videos, setVideos] = useState([]);
   const [featuredVideo, setFeaturedVideo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchVideos();
@@ -19,7 +24,7 @@ const Home = () => {
       const response = await videosAPI.getAllVideos();
       const videoData = response.data.videos || response.data || [];
       setVideos(videoData);
-      
+
       // Set featured video (first video or random)
       if (videoData.length > 0) {
         setFeaturedVideo(videoData[0]);
@@ -31,8 +36,30 @@ const Home = () => {
     }
   };
 
+  const handlePlayClick = async () => {
+    if (!isUserLoggedIn()) {
+      toast.error('Please login to watch videos');
+      navigate('/login');
+      return;
+    }
+
+    const hasSubscription = await checkSubscriptionStatus();
+
+    if (!hasSubscription) {
+      setShowSubscriptionModal(true);
+      return;
+    }
+
+    navigate(`/watch/${featuredVideo._id}`);
+  };
+
+  const handleSubscriptionSuccess = () => {
+    setShowSubscriptionModal(false);
+    navigate(`/watch/${featuredVideo._id}`);
+  };
+
   const getVideosByCategory = (category) => {
-    return videos.filter(video => 
+    return videos.filter(video =>
       video.genre?.toLowerCase().includes(category.toLowerCase()) ||
       video.videoType === category
     );
@@ -56,10 +83,10 @@ const Home = () => {
       const container = containerRef.current;
       if (container) {
         const scrollAmount = 300;
-        const newPosition = direction === 'left' 
+        const newPosition = direction === 'left'
           ? Math.max(0, scrollPosition - scrollAmount)
           : Math.min(container.scrollWidth - container.clientWidth, scrollPosition + scrollAmount);
-        
+
         container.scrollTo({ left: newPosition, behavior: 'smooth' });
         setScrollPosition(newPosition);
       }
@@ -72,17 +99,17 @@ const Home = () => {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-white text-xl font-semibold">{title}</h2>
           {viewAllLink && (
-            <Link 
-              to={viewAllLink} 
+            <Link
+              to={viewAllLink}
               className="text-blue-400 hover:text-blue-300 text-sm transition-colors"
             >
               View All
             </Link>
           )}
         </div>
-        
+
         <div className="relative group">
-          <div 
+          <div
             ref={containerRef}
             className="flex space-x-4 overflow-x-auto scrollbar-hide pb-2"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
@@ -93,7 +120,7 @@ const Home = () => {
               </div>
             ))}
           </div>
-          
+
           {videos.length > 5 && (
             <>
               <button
@@ -137,20 +164,20 @@ const Home = () => {
             <div className="absolute inset-0 bg-gradient-to-r from-black via-black/50 to-transparent" />
             <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
           </div>
-          
+
           <div className="relative z-10 flex items-center h-full">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="max-w-2xl">
                 <h1 className="text-4xl md:text-6xl font-bold text-white mb-4">
                   {featuredVideo.videoTitle}
                 </h1>
-                
+
                 {featuredVideo.description && (
                   <p className="text-lg text-gray-300 mb-6 line-clamp-3">
                     {featuredVideo.description}
                   </p>
                 )}
-                
+
                 <div className="flex items-center space-x-4 mb-8">
                   {featuredVideo.imdbRating && (
                     <span className="bg-yellow-500 text-black px-2 py-1 rounded text-sm font-semibold">
@@ -171,15 +198,15 @@ const Home = () => {
                     </span>
                   )}
                 </div>
-                
+
                 <div className="flex items-center space-x-4">
-                  <Link
-                    to={`/watch/${featuredVideo._id}`}
+                  <button
+                    onClick={handlePlayClick}
                     className="bg-white hover:bg-gray-200 text-black px-8 py-3 rounded-lg font-semibold flex items-center space-x-2 transition-colors"
                   >
                     <Play className="w-5 h-5" />
                     <span>Play</span>
-                  </Link>
+                  </button>
                   <Link
                     to={`/movie/${featuredVideo._id}`}
                     className="bg-gray-600 bg-opacity-70 hover:bg-opacity-90 text-white px-8 py-3 rounded-lg font-semibold flex items-center space-x-2 transition-colors"
@@ -197,44 +224,44 @@ const Home = () => {
       {/* Content Sections */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12">
         {/* Trending Now */}
-        <ScrollableRow 
-          title="Trending Now" 
-          videos={getTrendingVideos()} 
+        <ScrollableRow
+          title="Trending Now"
+          videos={getTrendingVideos()}
           viewAllLink="/trending"
         />
 
         {/* Recently Added */}
-        <ScrollableRow 
-          title="Recently Added" 
-          videos={getRecentVideos()} 
+        <ScrollableRow
+          title="Recently Added"
+          videos={getRecentVideos()}
           viewAllLink="/recent"
         />
 
         {/* Drama Series */}
-        <ScrollableRow 
-          title="Drama Series" 
-          videos={getVideosByCategory('drama')} 
+        <ScrollableRow
+          title="Drama Series"
+          videos={getVideosByCategory('drama')}
           viewAllLink="/genre/drama"
         />
 
         {/* Action Movies */}
-        <ScrollableRow 
-          title="Action" 
-          videos={getVideosByCategory('action')} 
+        <ScrollableRow
+          title="Action"
+          videos={getVideosByCategory('action')}
           viewAllLink="/genre/action"
         />
 
         {/* Comedy */}
-        <ScrollableRow 
-          title="Comedy" 
-          videos={getVideosByCategory('comedy')} 
+        <ScrollableRow
+          title="Comedy"
+          videos={getVideosByCategory('comedy')}
           viewAllLink="/genre/comedy"
         />
 
         {/* Episodes */}
-        <ScrollableRow 
-          title="Episodes" 
-          videos={videos.filter(v => v.videoType === 'episode')} 
+        <ScrollableRow
+          title="Episodes"
+          videos={videos.filter(v => v.videoType === 'episode')}
           viewAllLink="/episodes"
         />
       </div>
@@ -254,6 +281,13 @@ const Home = () => {
           overflow: hidden;
         }
       `}</style>
+
+      {/* Subscription Modal */}
+      <SubscriptionModal
+        isOpen={showSubscriptionModal}
+        onClose={() => setShowSubscriptionModal(false)}
+        onSubscriptionSuccess={handleSubscriptionSuccess}
+      />
     </div>
   );
 };

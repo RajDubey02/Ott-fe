@@ -63,17 +63,31 @@ export const videosAPI = {
       // If data is an array of episodes with parts, flatten it
       if (Array.isArray(data)) {
         const flattenedVideos = data.flatMap(episode =>
-          episode.parts?.map(part => ({
-            ...part,
-            episodeName: episode.episodeName,
-            _id: part.id, // Use the part ID as the main ID
-            videoTitle: part.title,
-            poster: part.posterUrl,
-            thumb: part.thumbUrl,
-            videoUrl: part.videoUrl,
-            streamUrl: part.streamUrl,
-            videoType: 'episode'
-          })) || []
+          episode.parts?.map(part => {
+            const video = {
+              ...part,
+              episodeName: episode.episodeName,
+              _id: part.id, // Use the part ID as the main ID
+              videoTitle: part.title,
+              poster: part.posterUrl,
+              thumb: part.thumbUrl,
+              videoUrl: part.videoUrl,
+              streamUrl: part.streamUrl,
+              videoType: 'episode'
+            };
+
+            // Debug logging for thumbnail URLs
+            console.log('Video thumbnail URLs:', {
+              id: video._id,
+              title: video.videoTitle,
+              thumb: video.thumb,
+              poster: video.poster,
+              thumbUrl: video.thumbUrl,
+              posterUrl: video.posterUrl
+            });
+
+            return video;
+          }) || []
         );
         return { ...response, data: { videos: flattenedVideos } };
       }

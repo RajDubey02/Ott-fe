@@ -1,15 +1,17 @@
+
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Share, Download, Plus, Check } from 'lucide-react';
 import Player from '../components/Player';
 import MovieCard from '../components/MovieCard';
 import { videosAPI, subscriptionsAPI, handleApiError, handleApiSuccess } from '../services/api';
+import { checkEpisodeAccess, isUserLoggedIn } from '../utils/subscriptionUtils';
 import { useAuth } from '../contexts/AuthContext';
-import toast from 'react-hot-toast';
 
 const Watch = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isAuthenticated } = useAuth();
   
   const [video, setVideo] = useState(null);
@@ -20,6 +22,8 @@ const Watch = () => {
   const [watchProgress, setWatchProgress] = useState(0);
   const [inWatchlist, setInWatchlist] = useState(false);
   const [videoUrl, setVideoUrl] = useState('');
+  const [selectedQuality, setSelectedQuality] = useState('auto');
+  const [availableQualities, setAvailableQualities] = useState([]);
 
   useEffect(() => {
     if (id) {
@@ -31,39 +35,112 @@ const Watch = () => {
     }
   }, [id, isAuthenticated]);
 
-  const fetchVideo = async () => {
-    try {
-      const response = await videosAPI.getVideoById(id);
-      const videoData = response.data.video || response.data;
-
-      setVideo(videoData);
-
-      // Get video stream URL - construct based on the video ID and quality
-      if (videoData && videoData._id) {
-        // For demo purposes, we'll use a placeholder URL since we don't have the actual streaming endpoint
-        // In production, this would be: `/api/v1/videos/stream/${videoData._id}`
-        setVideoUrl(`https://spottt.codifyinstitute.org/api/v1/videos/${videoData._id}`);
-      }
-
-      // Fetch related videos
-      const allVideosResponse = await videosAPI.getAllVideos();
-      const allVideos = allVideosResponse.data.videos || [];
-      const related = allVideos
-        .filter(v => v._id !== id && v.genre === videoData.genre)
-        .slice(0, 10);
-      setRelatedVideos(related);
-    } catch (error) {
-      handleApiError(error);
-      navigate('/');
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (video && isAuthenticated) {
+      checkAccess();
     }
+  }, [video]);
+
+  // Log URL change without truncation
+  useEffect(() => {
+    if (videoUrl) {
+      console.log('🎬 Final video URL set for player:', videoUrl);
+    } else {
+      console.log('⚠️ No video URL available for player');
+    }
+  }, [videoUrl]);
+
+const fetchVideo = async () => {
+  try {
+    console.log('Fetching video for ID:', id);
+    const response = await videosAPI.getVideoById(id);
+    const videoData = response.data.video || response.data;
+
+    console.log('Video data received:', videoData);
+    console.log('Video sources available:', videoData?.sources);
+    console.log('Default URL:', videoData?.defaultUrl);
+    console.log('Expires In:', videoData?.expiresIn);
+
+    setVideo(videoData);
+
+    if (videoData?.sources) {
+      const videoSources = videoData.sources.filter(source => source.type === 'video');
+      const qualities = videoSources.map(source => ({
+        quality: source.quality,
+        url: source.url,
+        label: source.quality.toUpperCase()
+      }));
+      setAvailableQualities(qualities);
+      if (qualities.length > 0) {
+        setSelectedQuality('auto');
+      }
+    }
+
+    if (videoData && (videoData._id || videoData.id)) {
+      if (videoData.defaultUrl) {
+        console.log('✅ Using backend default URL:', videoData.defaultUrl);
+        setVideoUrl(videoData.defaultUrl);
+      } else if (videoData.sources && videoData.sources.length > 0) {
+        const videoSources = videoData.sources.filter(source => source.type === 'video');
+        const sortedSources = [...videoSources].sort((a, b) => {
+          const qualityA = parseInt(a.quality) || 0;
+          const qualityB = parseInt(b.quality) || 0;
+          return qualityB - qualityA;
+        });
+        const bestQuality = sortedSources[0];
+        console.log('🏆 Best quality found:', bestQuality.quality, 'at', bestQuality.url);
+        setVideoUrl(bestQuality.url);
+      } else {
+        console.error('❌ No video sources or defaultUrl found');
+        setVideoUrl('');
+      }
+    }
+
+    // Check expiry and schedule refresh
+    const expiresInMinutes = parseInt(videoData.expiresIn.split(' ')[0]);
+    const expiryTime = new Date();
+    expiryTime.setMinutes(expiryTime.getMinutes() + expiresInMinutes);
+    console.log('URL expiry time:', expiryTime);
+
+    if (expiryTime < new Date(Date.now() + 5 * 60 * 1000)) { // Refresh if < 5 minutes left
+      console.log('🔄 URL expiring soon, re-fetching video...');
+      setTimeout(fetchVideo, 1000); // Re-fetch after 1 second to get a new URL
+    }
+
+    const allVideosResponse = await videosAPI.getAllVideos();
+    const allVideos = allVideosResponse.data.videos || [];
+    const related = allVideos
+      .filter(v => (v._id || v.id) !== (videoData._id || videoData.id) && v.genre === videoData.genre)
+      .slice(0, 10);
+    setRelatedVideos(related);
+  } catch (error) {
+    handleApiError(error);
+    navigate('/');
+  } finally {
+    setLoading(false);
   };
+};
 
   const checkAccess = async () => {
-    // For demo purposes, we'll assume user has access
-    // In real implementation, check user's subscription status
-    setHasAccess(true);
+    if (!isUserLoggedIn()) {
+      setHasAccess(false);
+      return;
+    }
+
+    try {
+      const episodeId = video?._id || video?.id || id;
+      const episodeName = video?.episodeName || video?.videoTitle || video?.title;
+
+      console.log('Checking access for video:', { episodeId, episodeName });
+
+      const hasAccessToVideo = await checkEpisodeAccess(episodeId, episodeName);
+      console.log('Access result:', hasAccessToVideo);
+
+      setHasAccess(hasAccessToVideo);
+    } catch (error) {
+      console.error('Error checking access:', error);
+      setHasAccess(false);
+    }
   };
 
   const fetchSubscriptions = async () => {
@@ -77,14 +154,23 @@ const Watch = () => {
 
   const handleProgress = (progress) => {
     setWatchProgress(progress.played);
-    // Save progress to backend
-    // progressAPI.saveProgress(id, progress.playedSeconds);
   };
 
   const handleVideoEnd = () => {
-    toast.success('Video completed!');
-    // Mark as watched
-    // progressAPI.markAsWatched(id);
+    // toast.success('Video completed!');
+  };
+
+  const handleShare = async () => {
+    try {
+      await navigator.share({
+        title: video?.videoTitle || video?.title || 'Video',
+        text: video?.description || 'Check out this video!',
+        url: window.location.href,
+      });
+    } catch (error) {
+      navigator.clipboard.writeText(window.location.href);
+      // toast.success('Link copied to clipboard!');
+    }
   };
 
   const toggleWatchlist = () => {
@@ -96,17 +182,36 @@ const Watch = () => {
     }
   };
 
-  const handleShare = async () => {
-    try {
-      await navigator.share({
-        title: video.videoTitle,
-        text: video.description,
-        url: window.location.href,
-      });
-    } catch (error) {
-      // Fallback to copying URL
-      navigator.clipboard.writeText(window.location.href);
-      toast.success('Link copied to clipboard!');
+  const handleQualityChange = (newQuality) => {
+    console.log('🔄 Quality change requested:', newQuality);
+    setSelectedQuality(newQuality);
+
+    if (video && video.sources) {
+      const videoSources = video.sources.filter(source => source.type === 'video');
+
+      if (newQuality === 'auto') {
+        const sortedSources = [...videoSources].sort((a, b) => {
+          const qualityA = parseInt(a.quality) || 0;
+          const qualityB = parseInt(b.quality) || 0;
+          return qualityB - qualityA;
+        });
+
+        if (sortedSources.length > 0) {
+          const bestQuality = sortedSources[0];
+          console.log('🏆 Switching to auto (highest quality):', bestQuality.quality, bestQuality.url);
+          setVideoUrl(bestQuality.url);
+        }
+      } else {
+        const selectedSource = videoSources.find(source => source.quality === newQuality);
+        if (selectedSource) {
+          console.log('🎯 Switching to specific quality:', newQuality, selectedSource.url);
+          setVideoUrl(selectedSource.url);
+        } else {
+          console.error('❌ Quality not found:', newQuality);
+        }
+      }
+    } else {
+      console.error('❌ No video sources available for quality change');
     }
   };
 
@@ -172,7 +277,6 @@ const Watch = () => {
 
   return (
     <div className="min-h-screen bg-black">
-      {/* Back Button */}
       <div className="absolute top-4 left-4 z-50">
         <button
           onClick={() => navigate(-1)}
@@ -182,30 +286,28 @@ const Watch = () => {
         </button>
       </div>
 
-      {/* Video Player */}
       <div className="relative">
         <Player
-          url={video.streamUrl || video.videoUrl || '/api/placeholder/video'}
-          poster={video.poster}
-          title={video.videoTitle}
+          url={videoUrl}
+          poster={video?.posterUrl || video?.thumbUrl || video?.poster}
+          title={video?.videoTitle || video?.title || video?.episodeName || 'Video'}
           onProgress={handleProgress}
           onEnded={handleVideoEnd}
-          startTime={watchProgress * (video.runtimeMinutes * 60 || 0)}
+          startTime={watchProgress * (video?.runtimeMinutes * 60 || 0)}
+          autoPlay={true}
+          key={videoUrl} // ✅ Re-added to force re-mount on URL change
         />
       </div>
 
-      {/* Video Info */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Title and Actions */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <h1 className="text-3xl font-bold text-white mb-2">
-                  {video.videoTitle}
+                  {video?.videoTitle || video?.title || video?.episodeName || 'Untitled Video'}
                 </h1>
-                {video.episodeName && (
+                {video?.episodeName && (
                   <p className="text-lg text-gray-400">{video.episodeName}</p>
                 )}
               </div>
@@ -226,6 +328,22 @@ const Watch = () => {
                   <Share className="w-4 h-4" />
                   <span>Share</span>
                 </button>
+
+                {availableQualities.length > 1 && (
+                  <div className="relative">
+                    <select
+                      value={selectedQuality}
+                      onChange={(e) => handleQualityChange(e.target.value)}
+                      className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded-lg transition-colors text-sm border border-gray-600"
+                    >
+                      {availableQualities.map((quality) => (
+                        <option key={quality.quality} value={quality.quality}>
+                          {quality.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 
                 <button className="flex items-center space-x-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors">
                   <Download className="w-4 h-4" />
@@ -234,7 +352,6 @@ const Watch = () => {
               </div>
             </div>
 
-            {/* Video Details */}
             <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400">
               {video.releaseDate && (
                 <span>{new Date(video.releaseDate).getFullYear()}</span>
@@ -257,7 +374,6 @@ const Watch = () => {
               )}
             </div>
 
-            {/* Description */}
             {video.description && (
               <div>
                 <h3 className="text-white text-lg font-semibold mb-2">Description</h3>
@@ -265,7 +381,6 @@ const Watch = () => {
               </div>
             )}
 
-            {/* Cast and Crew */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               {video.actors && video.actors.length > 0 && (
                 <div>
@@ -290,7 +405,6 @@ const Watch = () => {
               )}
             </div>
 
-            {/* Languages and Countries */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               {video.languages && video.languages.length > 0 && (
                 <div>
@@ -308,9 +422,7 @@ const Watch = () => {
             </div>
           </div>
 
-          {/* Sidebar */}
           <div className="space-y-6">
-            {/* Related Videos */}
             {relatedVideos.length > 0 && (
               <div>
                 <h3 className="text-white text-lg font-semibold mb-4">More Like This</h3>
@@ -341,7 +453,6 @@ const Watch = () => {
           </div>
         </div>
 
-        {/* More Related Videos */}
         {relatedVideos.length > 5 && (
           <div className="mt-12">
             <h3 className="text-white text-xl font-semibold mb-6">You might also like</h3>
