@@ -72,8 +72,8 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
-                <Link to="/terms" className="text-gray-400 hover:text-white transition-colors">
-                  Terms of Service
+                <Link to="/deletion-policy" className="text-gray-400 hover:text-white transition-colors">
+                  Deletion Policy
                 </Link>
               </li>
             </ul>

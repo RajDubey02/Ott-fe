@@ -27,6 +27,8 @@ import ManageSubscriptions from './pages/admin/ManageSubscriptions';
 import ManageQueries from './pages/admin/ManageQueries';
 import ManageBanners from './pages/admin/ManageBanners';
 
+import ScrollToTop from './components/ScrollToTop';
+
 // Protected Route Component
 const ProtectedRoute = ({ children, requireAdmin = false }) => {
   const { isAuthenticated, isAdmin, loading } = useAuth();
@@ -73,7 +75,7 @@ const AppRouter = () => {
       <Route path="/signup" element={<Signup />} />
       <Route path="/contact" element={<Layout><Contact /></Layout>} />
       <Route path="/privacy" element={<Layout><PrivacyPolicy /></Layout>} />
-      <Route path="/terms" element={<Layout><TermsOfService /></Layout>} />
+      <Route path="/deletion-policy" element={<Layout><TermsOfService /></Layout>} />
 
       {/* Protected User Routes */}
       <Route path="/" element={<Layout><Home /></Layout>} />
@@ -147,6 +149,7 @@ function App() {
       <AuthProvider>
         <div className="App">
           <AppRouter />
+            <ScrollToTop />
           <Toaster
             position="bottom-right"
             toastOptions={{

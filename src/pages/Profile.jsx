@@ -26,13 +26,20 @@ const Profile = () => {
     try {
       // Fetch subscriptions
       const subsResponse = await subscriptionsAPI.getMySubscriptions();
-      setSubscriptions(subsResponse.data.subscriptions || []);
-      
+      console.log('Subscriptions API Response:', subsResponse.data);
+
+      // Filter to only active subscriptions
+      const activeSubscriptions = (subsResponse.data || []).filter(sub => sub.status === 'active');
+      console.log('Active subscriptions:', activeSubscriptions);
+
+      setSubscriptions(activeSubscriptions);
+
       // Mock data for watchlist and history (replace with actual API calls)
       setWatchlist([]);
       setWatchHistory([]);
     } catch (error) {
       handleApiError(error);
+      console.error('Error fetching subscriptions:', error);
     } finally {
       setLoading(false);
     }
@@ -67,17 +74,28 @@ const Profile = () => {
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    if (!dateString) return 'N/A';
+
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch (error) {
+      return 'Invalid Date';
+    }
   };
 
   const getSubscriptionStatus = (subscription) => {
+    // If no end date, consider it as not having proper data
+    if (!subscription.endAt) {
+      return { status: 'unknown', color: 'text-yellow-400' };
+    }
+
     const now = new Date();
-    const expiryDate = new Date(subscription.expiryDate);
-    
+    const expiryDate = new Date(subscription.endAt);
+
     if (expiryDate > now) {
       return { status: 'active', color: 'text-green-400' };
     } else {
@@ -264,33 +282,40 @@ const Profile = () => {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {subscriptions.map((subscription, index) => {
+                    console.log('Rendering subscription:', index, subscription);
                     const { status, color } = getSubscriptionStatus(subscription);
                     return (
                       <div key={index} className="bg-gray-900 rounded-lg p-6 border border-gray-700">
                         <div className="flex justify-between items-start mb-4">
-                          <h3 className="text-lg font-semibold text-white">{subscription.planTitle}</h3>
+                          <h3 className="text-lg font-semibold text-white">{subscription.plan?.title || 'Unknown Plan'}</h3>
                           <span className={`text-sm font-medium ${color} capitalize`}>{status}</span>
                         </div>
-                        
+
                         <div className="space-y-2 text-sm">
                           <div className="flex justify-between">
                             <span className="text-gray-400">Plan Code:</span>
-                            <span className="text-white">{subscription.planCode}</span>
+                            <span className="text-white">{subscription.plan?.code || 'N/A'}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-400">Price:</span>
-                            <span className="text-white">₹{subscription.price}</span>
+                            <span className="text-white">₹{subscription.plan?.price || subscription.amount || 'N/A'}</span>
                           </div>
+                          {subscription.episodeName && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Episode:</span>
+                              <span className="text-white">{subscription.episodeName}</span>
+                            </div>
+                          )}
                           <div className="flex justify-between">
                             <span className="text-gray-400">Started:</span>
-                            <span className="text-white">{formatDate(subscription.startDate)}</span>
+                            <span className="text-white">{formatDate(subscription.startAt)}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-400">Expires:</span>
-                            <span className="text-white">{formatDate(subscription.expiryDate)}</span>
+                            <span className="text-white">{formatDate(subscription.endAt)}</span>
                           </div>
                         </div>
-                        
+
                         {status === 'expired' && (
                           <button className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors">
                             Renew Subscription
