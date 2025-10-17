@@ -54,17 +54,27 @@ const ManageBanners = () => {
     fetchBanners();
   }, [fetchBanners]);
 
-  // Handle upload file selection (from original code)
+  // Handle upload file selection
   const handleFileChange = (e) => {
-    const files = Array.from(e.target.files);
-    setBannerFiles(files);
-
-    // Create preview URLs for selected files
-    const urls = files.map(file => URL.createObjectURL(file));
-    setPreviewUrls(urls);
+    const newFiles = Array.from(e.target.files);
+    if (bannerFiles.length + newFiles.length > 10) {
+      toast.error('Maximum 10 banners can be uploaded at once');
+      return;
+    }
+    // Append new files to existing bannerFiles
+    setBannerFiles(prevFiles => [...prevFiles, ...newFiles]);
+    // Append new preview URLs
+    const newUrls = newFiles.map(file => URL.createObjectURL(file));
+    setPreviewUrls(prevUrls => [...prevUrls, ...newUrls]);
   };
 
-  // Handle upload submission (from original code)
+  // Trigger file input click
+  const triggerFileInput = () => {
+    const fileInput = document.getElementById('banner-files');
+    if (fileInput) fileInput.click();
+  };
+
+  // Handle upload submission
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -73,18 +83,12 @@ const ManageBanners = () => {
       return;
     }
 
-    if (bannerFiles.length > 10) {
-      toast.error('Maximum 10 banners can be uploaded at once');
-      return;
-    }
-
     try {
       setLoading(true);
       const formData = new FormData();
-
-      // Add each banner file with 'banners' key (as per original)
-      bannerFiles.forEach((file, index) => {
-        formData.append(`banners`, file);
+      // Add each banner file with 'banner' key to match edit format
+      bannerFiles.forEach(file => {
+        formData.append('banners', file);
       });
 
       await bannerAPI.uploadBanners(formData);
@@ -100,11 +104,10 @@ const ManageBanners = () => {
     }
   };
 
-  // Reset upload form (from original code)
+  // Reset upload form
   const resetForm = () => {
     setBannerFiles([]);
     setPreviewUrls([]);
-    // Clear file input
     const fileInput = document.getElementById('banner-files');
     if (fileInput) fileInput.value = '';
   };
@@ -143,18 +146,7 @@ const ManageBanners = () => {
       if (!(editFile instanceof File)) {
         throw new Error('Invalid file object');
       }
-      formData.append('banner', editFile, editFile.name); // Matches Postman
-
-      // Debug logs
-      console.log('FormData Contents:');
-      for (let [key, value] of formData.entries()) {
-        console.log(`${key}:`, value instanceof File ? `${value.name} (${value.type}, ${value.size} bytes)` : value);
-      }
-      console.log('editFile Details:', {
-        name: editFile.name,
-        type: editFile.type,
-        size: editFile.size,
-      });
+      formData.append('banner', editFile, editFile.name);
 
       const config = {
         onUploadProgress: (progress) => {
@@ -163,11 +155,8 @@ const ManageBanners = () => {
         },
         headers: { 'Content-Type': 'multipart/form-data' },
       };
-      console.log('Request Config:', config);
 
-      const response = await bannerAPI.updateBanner(editBanner._id, formData, config);
-      console.log('Response:', response.data);
-
+      await bannerAPI.updateBanner(editBanner._id, formData, config);
       toast.dismiss('edit-progress');
       handleApiSuccess('Banner updated');
       setShowEditModal(false);
@@ -179,11 +168,6 @@ const ManageBanners = () => {
     } catch (error) {
       toast.dismiss('edit-progress');
       handleApiError(error, 'Update failed');
-      console.error('Error Details:', {
-        message: error.message,
-        status: error.response?.status,
-        data: error.response?.data,
-      });
     } finally {
       setLoading(false);
     }
@@ -271,7 +255,6 @@ const ManageBanners = () => {
               <thead>
                 <tr className="bg-gray-700 text-gray-300">
                   <th className="p-3 text-left">Image</th>
-                  <th className="p-3 text-left">Image Key</th>
                   <th className="p-3 text-left">Size</th>
                   <th className="p-3 text-left">Created At</th>
                   <th className="p-3 text-left">Actions</th>
@@ -288,7 +271,6 @@ const ManageBanners = () => {
                         onError={(e) => (e.target.src = '/api/placeholder/100/60')}
                       />
                     </td>
-                    <td className="p-3">{banner.imageKey}</td>
                     <td className="p-3">{(banner.imageSize / 1024).toFixed(2)} KB</td>
                     <td className="p-3">{new Date(banner.createdAt).toLocaleDateString()}</td>
                     <td className="p-3">
@@ -325,7 +307,7 @@ const ManageBanners = () => {
           )}
         </div>
 
-        {/* Upload Modal (from original code) */}
+        {/* Upload Modal */}
         {showModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-gray-900 rounded-lg max-w-2xl w-full max-h-screen overflow-y-auto">
@@ -348,14 +330,24 @@ const ManageBanners = () => {
                     <label className="block text-sm font-medium text-gray-300 mb-2">
                       Banner Images * (Max 10 files)
                     </label>
-                    <input
-                      id="banner-files"
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      onChange={handleFileChange}
-                      className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                    />
+                    <div className="flex space-x-4">
+                      <input
+                        id="banner-files"
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={triggerFileInput}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center space-x-2"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>Add More</span>
+                      </button>
+                    </div>
                     <p className="text-xs text-gray-400 mt-1">
                       Select multiple image files (JPEG, PNG, WebP). Maximum 10 files at once.
                     </p>
@@ -378,13 +370,10 @@ const ManageBanners = () => {
                             <button
                               type="button"
                               onClick={() => {
-                                // Remove specific file
                                 const newFiles = bannerFiles.filter((_, i) => i !== index);
                                 const newUrls = previewUrls.filter((_, i) => i !== index);
                                 setBannerFiles(newFiles);
                                 setPreviewUrls(newUrls);
-
-                                // Update file input
                                 const fileInput = document.getElementById('banner-files');
                                 const dt = new DataTransfer();
                                 newFiles.forEach(file => dt.items.add(file));
@@ -451,12 +440,9 @@ const ManageBanners = () => {
                     onChange={(e) => {
                       const file = e.target.files[0];
                       if (file) {
-                        console.log('Selected File:', file);
                         if (editPreviewUrl) URL.revokeObjectURL(editPreviewUrl);
                         setEditFile(file);
                         setEditPreviewUrl(URL.createObjectURL(file));
-                      } else {
-                        console.log('No file selected');
                       }
                     }}
                     className="w-full p-2 bg-gray-700 border border-gray-600 rounded"
