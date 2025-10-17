@@ -23,6 +23,7 @@ import ManageMovies from './pages/admin/ManageMovies';
 import ManageUsers from './pages/admin/ManageUsers';
 import ManageSubscriptions from './pages/admin/ManageSubscriptions';
 import ManageQueries from './pages/admin/ManageQueries';
+import ManageBanners from './pages/admin/ManageBanners';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, requireAdmin = false }) => {
@@ -118,6 +119,13 @@ const AppRouter = () => {
         <AdminLayout>
           <ProtectedRoute requireAdmin>
             <ManageQueries />
+          </ProtectedRoute>
+        </AdminLayout>
+      } />
+      <Route path="/admin/banners" element={
+        <AdminLayout>
+          <ProtectedRoute requireAdmin>
+            <ManageBanners />
           </ProtectedRoute>
         </AdminLayout>
       } />

@@ -97,6 +97,7 @@ export const videosAPI = {
       throw error;
     }
   },
+  getVideosAll: () => api.get('/videos/all'),
   getReadyVideos: () => api.get('/videos'),
   getVideoById: async (videoId) => {
     try {
@@ -120,12 +121,30 @@ export const videosAPI = {
   }),
 };
 
+
+
+
 // Categories API calls
 export const categoriesAPI = {
   getCategories: () => api.get('/categories'),
   createCategory: (data) => api.post('/categories', data),
   updateCategoryStatus: (categoryId, status) => api.post(`/categories/${categoryId}/status`, { status }),
 };
+
+
+// Banners API calls
+export const bannerAPI = {
+  getBanner: () => api.get('/banners'),
+  createBanner: (bannerData) => api.post('/banners', bannerData),
+  uploadBanners: (bannersData) => api.post('admin/banners', bannersData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  deleteBanner: (bannerId) => api.delete(`/admin/banners/${bannerId}`),
+  updateBannerStatus: (bannerId, status) => api.patch(`/banners/${bannerId}/status`, { status }),
+  // updateBanner : (bannerId) => api.patch(`/admin/banners/${bannerId}`)
+  updateBanner: (id, formData, config) => api.patch(`/admin/banners/${id}`, formData, config)
+};
+
 
 // Subscriptions API calls
 export const subscriptionsAPI = {

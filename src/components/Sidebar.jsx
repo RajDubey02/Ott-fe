@@ -7,7 +7,8 @@ import {
   CreditCard,
   User,
   LogOut,
-  MessageSquare
+  MessageSquare,
+  Image
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -39,6 +40,7 @@ const Sidebar = () => {
           <NavLink to="/admin/movies" icon={Video} label="Manage Videos" currentPath={location.pathname} />
           <NavLink to="/admin/users" icon={Users} label="Manage Users" currentPath={location.pathname} />
           <NavLink to="/admin/subscriptions" icon={CreditCard} label="Subscriptions" currentPath={location.pathname} />
+          <NavLink to="/admin/banners" icon={Image} label="Banners" currentPath={location.pathname} />
           <NavLink to="/admin/queries" icon={MessageSquare} label="Queries" currentPath={location.pathname} />
         </div>
       </nav>
