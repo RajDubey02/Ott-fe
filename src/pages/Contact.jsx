@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { MessageSquare, Send, User, Mail, Phone, FileText } from 'lucide-react';
 import { queriesAPI, handleApiError, handleApiSuccess } from '../services/api';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
+
 
 const Contact = () => {
   const [formData, setFormData] = useState({
@@ -57,7 +56,7 @@ const Contact = () => {
 
   return (
     <div className="min-h-screen bg-black flex flex-col">
-      <Navbar />
+   
 
       <main className="flex-1 py-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -238,7 +237,7 @@ const Contact = () => {
         </div>
       </main>
 
-      <Footer />
+      
     </div>
   );
 };

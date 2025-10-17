@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Search, User, LogOut, Menu, X, Settings } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import logo from '../assets/applogo (1).png'
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -30,12 +31,16 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">S</span>
-            </div>
-            <span className="text-white font-bold text-xl">SOP OTT</span>
-          </Link>
+          <Link to="/" className="flex items-center space-x-3">
+  <img
+    src={logo}
+    alt="Logo"
+    className="h-8 w-auto object-contain"
+  />
+  <span className="text-white font-semibold text-lg leading-none">
+    sahyadriott
+  </span>
+</Link>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">

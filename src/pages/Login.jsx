@@ -53,7 +53,7 @@ const Login = () => {
             <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-xl">S</span>
             </div>
-            <span className="text-white font-bold text-2xl">SOP OTT</span>
+            <span className="text-white font-bold text-2xl">Sahyadriott OTT</span>
           </Link>
           <h2 className="mt-6 text-3xl font-bold text-white">Sign in to your account</h2>
           <p className="mt-2 text-sm text-gray-400">

@@ -16,6 +16,8 @@ import Profile from './pages/Profile';
 import Contact from './pages/Contact';
 import Episodes from './pages/Episodes'
 import VideoPlayer from './pages/VideoPlayer'
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
 
 // Admin Pages
 import Dashboard from './pages/admin/Dashboard';
@@ -70,6 +72,8 @@ const AppRouter = () => {
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/contact" element={<Layout><Contact /></Layout>} />
+      <Route path="/privacy" element={<Layout><PrivacyPolicy /></Layout>} />
+      <Route path="/terms" element={<Layout><TermsOfService /></Layout>} />
 
       {/* Protected User Routes */}
       <Route path="/" element={<Layout><Home /></Layout>} />

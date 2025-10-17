@@ -12,7 +12,7 @@ const Footer = () => {
               <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-lg">S</span>
               </div>
-              <span className="text-white font-bold text-xl">SOP OTT</span>
+              <span className="text-white font-bold text-xl">Sahyadriott OTT</span>
             </div>
             <p className="text-gray-400 mb-4 max-w-md">
               Your premium destination for movies and series. Stream unlimited content with the best quality and experience.
@@ -42,16 +42,8 @@ const Footer = () => {
                   Home
                 </Link>
               </li>
-              <li>
-                <Link to="/movies" className="text-gray-400 hover:text-white transition-colors">
-                  Movies
-                </Link>
-              </li>
-              <li>
-                <Link to="/series" className="text-gray-400 hover:text-white transition-colors">
-                  Series
-                </Link>
-              </li>
+            
+            
               <li>
                 <Link to="/search" className="text-gray-400 hover:text-white transition-colors">
                   Search
@@ -64,11 +56,11 @@ const Footer = () => {
           <div>
             <h3 className="text-white font-semibold mb-4">Support</h3>
             <ul className="space-y-2">
-              <li>
+              {/* <li>
                 <Link to="/help" className="text-gray-400 hover:text-white transition-colors">
                   Help Center
                 </Link>
-              </li>
+              </li> */}
               <li>
                 <Link to="/contact" className="text-gray-400 hover:text-white transition-colors">
                   Contact Us
@@ -94,7 +86,7 @@ const Footer = () => {
             <div className="flex items-center space-x-6 mb-4 md:mb-0">
               <div className="flex items-center space-x-2 text-gray-400">
                 <Mail className="w-4 h-4" />
-                <span>support@sopott.com</span>
+                <span>support@Sahyadriottott.com</span>
               </div>
               <div className="flex items-center space-x-2 text-gray-400">
                 <Phone className="w-4 h-4" />
@@ -102,7 +94,7 @@ const Footer = () => {
               </div>
             </div>
             <p className="text-gray-400 text-sm">
-              © 2025 SOP OTT. All rights reserved.
+              © 2025 Sahyadriott. All rights reserved.
             </p>
           </div>
         </div>
