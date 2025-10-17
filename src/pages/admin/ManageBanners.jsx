@@ -33,15 +33,7 @@ const ManageBanners = () => {
       const response = await bannerAPI.getBanner();
       const bannersData = response.data?.banners || [];
       if (!Array.isArray(bannersData)) throw new Error('Invalid banners data');
-      const sanitizedBanners = bannersData.map(banner => ({
-        ...banner,
-        _id: banner._id || '',
-        imageUrl: banner.imageUrl || `http://103.180.212.106:9000/ott-vods/${banner.imageKey}`,
-        altText: `Banner ${banner._id}`,
-        status: banner.status || 'active',
-        createdAt: banner.createdAt || new Date().toISOString(),
-      }));
-      setBanners(sanitizedBanners);
+      setBanners(bannersData);
     } catch (error) {
       handleApiError(error, 'Failed to fetch banners');
       setBanners([]);

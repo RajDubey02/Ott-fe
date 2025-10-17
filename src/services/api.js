@@ -3,7 +3,95 @@ import toast from 'react-hot-toast';
 
 const BASE_URL = 'https://spottt.codifyinstitute.org/api/v1';
 
-// Create axios instance
+// Image proxy transformation for production
+const transformImageUrls = (data) => {
+  if (!data) return data;
+
+  // Handle array of objects
+  if (Array.isArray(data)) {
+    return data.map(item => transformImageUrls(item));
+  }
+
+  // Handle single object
+  if (typeof data === 'object') {
+    const transformed = { ...data };
+
+    // Transform common image URL fields
+    const urlFields = [
+      'seriesPosterUrl', 'seriesThumbUrl', 'seriesTrailerUrl',
+      'posterUrl', 'thumbUrl', 'trailerUrl', 'poster', 'thumb',
+      'imageUrl', 'coverUrl', 'bannerUrl', 'banner', 'bannerImage',
+      // Video URL fields
+      'videoUrl', 'streamUrl', 'videoSrc', 'sourceUrl',
+      // Trailer fields
+      'trailerVideoUrl', 'trailerSrc', 'previewUrl', 'promoUrl',
+      // Additional video fields
+      'video', 'src', 'url', 'fileUrl', 'mediaUrl', 'contentUrl',
+      'defaultUrl'
+    ];
+
+    urlFields.forEach(field => {
+      if (transformed[field] && typeof transformed[field] === 'string' && transformed[field].startsWith('http://')) {
+        // Use a working proxy service for immediate production deployment
+        const originalUrl = transformed[field];
+
+        // For videos (.mp4, .webm, .m3u8)
+        if (originalUrl.includes('.mp4') || originalUrl.includes('.webm') || originalUrl.includes('.m3u8')) {
+          // Use working proxy services for videos
+          const videoProxies = [
+            `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(originalUrl)}`,
+            `https://corsproxy.io/?${originalUrl}`,
+            `https://proxy.cors.sh/${originalUrl}`
+          ];
+
+          // Use the first proxy service (most reliable)
+          transformed[field] = videoProxies[0];
+        } else {
+          // Use image proxy for images
+          transformed[field] = `https://images.weserv.nl/?url=${encodeURIComponent(originalUrl)}`;
+        }
+
+        console.log(`🔄 Proxy URL: ${originalUrl} → ${transformed[field]}`);
+      }
+    });
+
+    // Handle nested objects (like videos array)
+    if (transformed.videos && Array.isArray(transformed.videos)) {
+      transformed.videos = transformed.videos.map(video => transformImageUrls(video));
+    }
+
+    // Handle parts array in episodes
+    if (transformed.parts && Array.isArray(transformed.parts)) {
+      transformed.parts = transformed.parts.map(part => transformImageUrls(part));
+    }
+
+    // Handle sources array in video objects
+    if (transformed.sources && Array.isArray(transformed.sources)) {
+      transformed.sources = transformed.sources.map(source => {
+        if (source.url && typeof source.url === 'string' && source.url.startsWith('http://')) {
+          if (source.url.includes('.mp4') || source.url.includes('.webm') || source.url.includes('.m3u8')) {
+            // Use working proxy services for videos
+            const videoProxies = [
+              `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(source.url)}`,
+              `https://corsproxy.io/?${source.url}`,
+              `https://proxy.cors.sh/${source.url}`
+            ];
+
+            // Use the first proxy service (most reliable)
+            source.url = videoProxies[0];
+          } else {
+            source.url = `https://images.weserv.nl/?url=${encodeURIComponent(source.url)}`;
+          }
+        }
+        return source;
+      });
+    }
+
+    return transformed;
+  }
+
+  return data;
+};
 const api = axios.create({
   baseURL: BASE_URL,
   headers: {
@@ -27,9 +115,13 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor for error handling
+// Response interceptor for error handling and URL transformation
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Apply image proxy transformation to all responses
+    response.data = transformImageUrls(response.data);
+    return response;
+  },
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
@@ -77,19 +169,26 @@ export const videosAPI = {
             };
 
             // Debug logging for thumbnail URLs
-            console.log('Video thumbnail URLs:', {
+            console.log('Video data:', {
               id: video._id,
               title: video.videoTitle,
               thumb: video.thumb,
               poster: video.poster,
-              thumbUrl: video.thumbUrl,
-              posterUrl: video.posterUrl
+              videoUrl: video.videoUrl,
+              streamUrl: video.streamUrl
             });
 
             return video;
           }) || []
         );
-        return { ...response, data: { videos: flattenedVideos } };
+
+        // Apply image proxy transformation to flattened videos
+        const transformedVideos = flattenedVideos.map(video => {
+          console.log(`🔄 Processing video for transformation - NODE_ENV: ${import.meta.env.NODE_ENV}`);
+          return transformImageUrls(video);
+        });
+
+        return { ...response, data: { videos: transformedVideos } };
       }
 
       return response;
@@ -134,7 +233,58 @@ export const categoriesAPI = {
 
 // Banners API calls
 export const bannerAPI = {
-  getBanner: () => api.get('/banners'),
+  getBanner: async () => {
+    try {
+      const response = await api.get('/banners');
+
+      console.log('🎬 Raw banner response:', response.data);
+
+      // Ensure banners array exists
+      if (!response.data) {
+        response.data = { banners: [] };
+      }
+
+      if (!Array.isArray(response.data.banners)) {
+        response.data.banners = [];
+      }
+
+      console.log('🎬 Banner array length:', response.data.banners.length);
+
+      // Process each banner
+      response.data.banners = response.data.banners.map(banner => {
+        console.log('🎬 Processing banner:', banner);
+
+        // Ensure imageUrl exists and is HTTP
+        let imageUrl = banner.imageUrl;
+        if (!imageUrl && banner.imageKey) {
+          imageUrl = `http://103.180.212.106:9000/ott-vods/${banner.imageKey}`;
+        }
+
+        if (imageUrl && imageUrl.startsWith('http://')) {
+          // Transform to HTTPS proxy
+          const transformedUrl = `https://images.weserv.nl/?url=${encodeURIComponent(imageUrl)}`;
+          console.log(`✅ Banner transformed: ${imageUrl} → ${transformedUrl}`);
+
+          return {
+            ...banner,
+            imageUrl: transformedUrl,
+            altText: `Banner ${banner._id || ''}`,
+            status: banner.status || 'active',
+            createdAt: banner.createdAt || new Date().toISOString(),
+          };
+        }
+
+        return banner;
+      });
+
+      console.log('🎬 Final transformed banners:', response.data.banners);
+      return response;
+
+    } catch (error) {
+      console.error('❌ Banner API error:', error);
+      throw error;
+    }
+  },
   createBanner: (bannerData) => api.post('/banners', bannerData),
   uploadBanners: (bannersData) => api.post('admin/banners', bannersData, {
     headers: { 'Content-Type': 'multipart/form-data' }
